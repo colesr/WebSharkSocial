@@ -1,4 +1,4 @@
-import { createClient, type Client, type ResultSet, type Row } from "@libsql/client";
+import { createClient, type Client, type InArgs, type ResultSet, type Row } from "@libsql/client";
 
 const schema = `
   PRAGMA foreign_keys = ON;
@@ -52,7 +52,7 @@ const schema = `
   CREATE INDEX IF NOT EXISTS idx_comments_post_id  ON comments(post_id);
 `;
 
-type SqlArgs = unknown[];
+type SqlArgs = InArgs;
 
 let client: Client | null = null;
 let initPromise: Promise<void> | null = null;
