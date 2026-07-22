@@ -10,20 +10,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const { id } = await params;
   const postId = Number(id);
 
-  const row = db
-    .prepare(
-      `SELECT
-         p.id, p.content, p.image_url, p.created_at,
-         u.id AS author_id, u.username AS author_username,
-         u.display_name AS author_display_name, u.avatar_url AS author_avatar,
-         (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id)              AS like_count,
-         (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id)           AS comment_count,
-         EXISTS(SELECT 1 FROM likes l2 WHERE l2.post_id = p.id AND l2.user_id = ?) AS liked_by_me
-       FROM posts p
-       JOIN users u ON u.id = p.user_id
-       WHERE p.id = ?`
-    )
-    .get(me?.userId ?? null, postId) as
+  const row = await db.get<
     | {
         id: number;
         content: string;
@@ -37,7 +24,20 @@ export async function GET(_req: NextRequest, { params }: Params) {
         comment_count: number;
         liked_by_me: number;
       }
-    | undefined;
+    | undefined
+  >(
+      `SELECT
+         p.id, p.content, p.image_url, p.created_at,
+         u.id AS author_id, u.username AS author_username,
+         u.display_name AS author_display_name, u.avatar_url AS author_avatar,
+         (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id)              AS like_count,
+         (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id)           AS comment_count,
+         EXISTS(SELECT 1 FROM likes l2 WHERE l2.post_id = p.id AND l2.user_id = ?) AS liked_by_me
+       FROM posts p
+       JOIN users u ON u.id = p.user_id
+       WHERE p.id = ?`,
+      [me?.userId ?? null, postId]
+    );
 
   if (!row) {
     return NextResponse.json({ error: "Post not found" }, { status: 404 });
@@ -70,9 +70,10 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const { id } = await params;
   const postId = Number(id);
 
-  const post = db
-    .prepare("SELECT user_id FROM posts WHERE id = ?")
-    .get(postId) as { user_id: number } | undefined;
+  const post = await db.get<{ user_id: number }>(
+    "SELECT user_id FROM posts WHERE id = ?",
+    [postId]
+  );
 
   if (!post) {
     return NextResponse.json({ error: "Post not found" }, { status: 404 });
@@ -82,6 +83,6 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  db.prepare("DELETE FROM posts WHERE id = ?").run(postId);
+  await db.run("DELETE FROM posts WHERE id = ?", [postId]);
   return NextResponse.json({ success: true });
 }

@@ -13,9 +13,10 @@ export async function POST(_req: NextRequest, { params }: Params) {
 
   const { username } = await params;
 
-  const target = db
-    .prepare("SELECT id FROM users WHERE username = ?")
-    .get(username) as { id: number } | undefined;
+  const target = await db.get<{ id: number }>(
+    "SELECT id FROM users WHERE username = ?",
+    [username]
+  );
 
   if (!target) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -25,15 +26,20 @@ export async function POST(_req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Cannot follow yourself" }, { status: 400 });
   }
 
-  db.prepare(
-    "INSERT OR IGNORE INTO follows (follower_id, following_id) VALUES (?, ?)"
-  ).run(me.userId, target.id);
+  await db.run("INSERT OR IGNORE INTO follows (follower_id, following_id) VALUES (?, ?)", [
+    me.userId,
+    target.id,
+  ]);
 
-  const { count } = db
-    .prepare("SELECT COUNT(*) AS count FROM follows WHERE following_id = ?")
-    .get(target.id) as { count: number };
+  const followerRow = await db.get<{ count: number }>(
+    "SELECT COUNT(*) AS count FROM follows WHERE following_id = ?",
+    [target.id]
+  );
 
-  return NextResponse.json({ followerCount: count, isFollowing: true });
+  return NextResponse.json({
+    followerCount: followerRow?.count ?? 0,
+    isFollowing: true,
+  });
 }
 
 // DELETE /api/users/[username]/follow
@@ -45,21 +51,27 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   const { username } = await params;
 
-  const target = db
-    .prepare("SELECT id FROM users WHERE username = ?")
-    .get(username) as { id: number } | undefined;
+  const target = await db.get<{ id: number }>(
+    "SELECT id FROM users WHERE username = ?",
+    [username]
+  );
 
   if (!target) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  db.prepare(
-    "DELETE FROM follows WHERE follower_id = ? AND following_id = ?"
-  ).run(me.userId, target.id);
+  await db.run("DELETE FROM follows WHERE follower_id = ? AND following_id = ?", [
+    me.userId,
+    target.id,
+  ]);
 
-  const { count } = db
-    .prepare("SELECT COUNT(*) AS count FROM follows WHERE following_id = ?")
-    .get(target.id) as { count: number };
+  const followerRow = await db.get<{ count: number }>(
+    "SELECT COUNT(*) AS count FROM follows WHERE following_id = ?",
+    [target.id]
+  );
 
-  return NextResponse.json({ followerCount: count, isFollowing: false });
+  return NextResponse.json({
+    followerCount: followerRow?.count ?? 0,
+    isFollowing: false,
+  });
 }

@@ -13,8 +13,19 @@ export async function GET(req: NextRequest) {
   const cursor = searchParams.get("cursor"); // ISO timestamp for pagination
   const limit = 20;
 
-  const rows = db
-    .prepare(
+  const rows = await db.all<{
+      id: number;
+      content: string;
+      image_url: string;
+      created_at: string;
+      author_id: number;
+      author_username: string;
+      author_display_name: string;
+      author_avatar: string;
+      like_count: number;
+      comment_count: number;
+      liked_by_me: number;
+    }>(
       `SELECT
          p.id, p.content, p.image_url, p.created_at,
          u.id AS author_id, u.username AS author_username,
@@ -29,21 +40,9 @@ export async function GET(req: NextRequest) {
               ))
          AND (? IS NULL OR p.created_at < ?)
        ORDER BY p.created_at DESC
-       LIMIT ?`
-    )
-    .all(me.userId, me.userId, me.userId, cursor, cursor, limit) as Array<{
-      id: number;
-      content: string;
-      image_url: string;
-      created_at: string;
-      author_id: number;
-      author_username: string;
-      author_display_name: string;
-      author_avatar: string;
-      like_count: number;
-      comment_count: number;
-      liked_by_me: number;
-    }>;
+       LIMIT ?`,
+      [me.userId, me.userId, me.userId, cursor, cursor, limit]
+    );
 
   const posts = rows.map((r) => ({
     id: r.id,
@@ -87,19 +86,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const result = db
-    .prepare("INSERT INTO posts (user_id, content, image_url) VALUES (?, ?, ?)")
-    .run(me.userId, content.trim(), imageUrl ?? "");
+  const result = await db.run(
+    "INSERT INTO posts (user_id, content, image_url) VALUES (?, ?, ?)",
+    [me.userId, content.trim(), imageUrl ?? ""]
+  );
 
-  const post = db
-    .prepare(
-      `SELECT p.id, p.content, p.image_url, p.created_at,
-              u.id AS author_id, u.username AS author_username,
-              u.display_name AS author_display_name, u.avatar_url AS author_avatar
-       FROM posts p JOIN users u ON u.id = p.user_id
-       WHERE p.id = ?`
-    )
-    .get(result.lastInsertRowid) as {
+  const post = await db.get<{
       id: number;
       content: string;
       image_url: string;
@@ -108,7 +100,18 @@ export async function POST(req: NextRequest) {
       author_username: string;
       author_display_name: string;
       author_avatar: string;
-    };
+    }>(
+      `SELECT p.id, p.content, p.image_url, p.created_at,
+             u.id AS author_id, u.username AS author_username,
+             u.display_name AS author_display_name, u.avatar_url AS author_avatar
+       FROM posts p JOIN users u ON u.id = p.user_id
+       WHERE p.id = ?`,
+      [Number(result.lastInsertRowid)]
+    );
+
+  if (!post) {
+    return NextResponse.json({ error: "Post not found after creation" }, { status: 500 });
+  }
 
   return NextResponse.json(
     {
@@ -117,10 +120,10 @@ export async function POST(req: NextRequest) {
       imageUrl: post.image_url,
       createdAt: post.created_at,
       author: {
-        id: post.author_id,
-        username: post.author_username,
-        displayName: post.author_display_name,
-        avatarUrl: post.author_avatar,
+       id: post.author_id,
+       username: post.author_username,
+       displayName: post.author_display_name,
+       avatarUrl: post.author_avatar,
       },
       likeCount: 0,
       commentCount: 0,

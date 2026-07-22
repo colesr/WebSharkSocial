@@ -12,21 +12,20 @@ export async function GET(req: NextRequest) {
 
   const pattern = `%${q}%`;
 
-  const users = db
-    .prepare(
-      `SELECT id, username, display_name, bio, avatar_url
-       FROM users
-       WHERE username LIKE ? OR display_name LIKE ?
-       ORDER BY username ASC
-       LIMIT 20`
-    )
-    .all(pattern, pattern) as Array<{
+  const users = await db.all<{
       id: number;
       username: string;
       display_name: string;
       bio: string;
       avatar_url: string;
-    }>;
+    }>(
+      `SELECT id, username, display_name, bio, avatar_url
+       FROM users
+       WHERE username LIKE ? OR display_name LIKE ?
+       ORDER BY username ASC
+       LIMIT 20`,
+      [pattern, pattern]
+    );
 
   return NextResponse.json({
     users: users.map((u) => ({

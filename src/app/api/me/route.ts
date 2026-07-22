@@ -8,11 +8,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const user = db
-    .prepare(
-      "SELECT id, username, display_name, email, bio, avatar_url, created_at FROM users WHERE id = ?"
-    )
-    .get(me.userId) as
+  const user = await db.get<
     | {
         id: number;
         username: string;
@@ -22,7 +18,11 @@ export async function GET() {
         avatar_url: string;
         created_at: string;
       }
-    | undefined;
+    | undefined
+  >(
+    "SELECT id, username, display_name, email, bio, avatar_url, created_at FROM users WHERE id = ?",
+    [me.userId]
+  );
 
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -51,24 +51,25 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "Display name cannot be empty" }, { status: 400 });
   }
 
-  db.prepare(
-    "UPDATE users SET display_name = COALESCE(?, display_name), bio = COALESCE(?, bio), avatar_url = COALESCE(?, avatar_url) WHERE id = ?"
-  ).run(
-    displayName ?? null,
-    bio ?? null,
-    avatarUrl ?? null,
-    me.userId
+  await db.run(
+    "UPDATE users SET display_name = COALESCE(?, display_name), bio = COALESCE(?, bio), avatar_url = COALESCE(?, avatar_url) WHERE id = ?",
+    [displayName ?? null, bio ?? null, avatarUrl ?? null, me.userId]
   );
 
-  const updated = db
-    .prepare("SELECT id, username, display_name, bio, avatar_url FROM users WHERE id = ?")
-    .get(me.userId) as {
+  const updated = await db.get<{
       id: number;
       username: string;
       display_name: string;
       bio: string;
       avatar_url: string;
-    };
+    }>(
+    "SELECT id, username, display_name, bio, avatar_url FROM users WHERE id = ?",
+    [me.userId]
+  );
+
+  if (!updated) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
 
   return NextResponse.json({
     id: updated.id,

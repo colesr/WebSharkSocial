@@ -9,17 +9,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const { id } = await params;
   const postId = Number(id);
 
-  const rows = db
-    .prepare(
-      `SELECT c.id, c.content, c.created_at,
-              u.id AS author_id, u.username AS author_username,
-              u.display_name AS author_display_name, u.avatar_url AS author_avatar
-       FROM comments c
-       JOIN users u ON u.id = c.user_id
-       WHERE c.post_id = ?
-       ORDER BY c.created_at ASC`
-    )
-    .all(postId) as Array<{
+  const rows = await db.all<{
       id: number;
       content: string;
       created_at: string;
@@ -27,7 +17,16 @@ export async function GET(_req: NextRequest, { params }: Params) {
       author_username: string;
       author_display_name: string;
       author_avatar: string;
-    }>;
+    }>(
+      `SELECT c.id, c.content, c.created_at,
+             u.id AS author_id, u.username AS author_username,
+             u.display_name AS author_display_name, u.avatar_url AS author_avatar
+       FROM comments c
+       JOIN users u ON u.id = c.user_id
+       WHERE c.post_id = ?
+       ORDER BY c.created_at ASC`,
+      [postId]
+    );
 
   const comments = rows.map((r) => ({
     id: r.id,
@@ -54,7 +53,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const postId = Number(id);
 
-  const post = db.prepare("SELECT id FROM posts WHERE id = ?").get(postId);
+  const post = await db.get<{ id: number }>("SELECT id FROM posts WHERE id = ?", [postId]);
   if (!post) {
     return NextResponse.json({ error: "Post not found" }, { status: 404 });
   }
@@ -71,18 +70,12 @@ export async function POST(req: NextRequest, { params }: Params) {
     );
   }
 
-  const result = db
-    .prepare("INSERT INTO comments (user_id, post_id, content) VALUES (?, ?, ?)")
-    .run(me.userId, postId, content.trim());
+  const result = await db.run(
+    "INSERT INTO comments (user_id, post_id, content) VALUES (?, ?, ?)",
+    [me.userId, postId, content.trim()]
+  );
 
-  const comment = db
-    .prepare(
-      `SELECT c.id, c.content, c.created_at,
-              u.id AS author_id, u.username AS author_username,
-              u.display_name AS author_display_name, u.avatar_url AS author_avatar
-       FROM comments c JOIN users u ON u.id = c.user_id WHERE c.id = ?`
-    )
-    .get(result.lastInsertRowid) as {
+  const comment = await db.get<{
       id: number;
       content: string;
       created_at: string;
@@ -90,7 +83,17 @@ export async function POST(req: NextRequest, { params }: Params) {
       author_username: string;
       author_display_name: string;
       author_avatar: string;
-    };
+    }>(
+      `SELECT c.id, c.content, c.created_at,
+              u.id AS author_id, u.username AS author_username,
+              u.display_name AS author_display_name, u.avatar_url AS author_avatar
+       FROM comments c JOIN users u ON u.id = c.user_id WHERE c.id = ?`,
+      [Number(result.lastInsertRowid)]
+    );
+
+  if (!comment) {
+    return NextResponse.json({ error: "Comment not found after creation" }, { status: 500 });
+  }
 
   return NextResponse.json(
     {

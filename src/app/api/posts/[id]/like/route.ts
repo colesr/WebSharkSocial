@@ -14,20 +14,22 @@ export async function POST(_req: NextRequest, { params }: Params) {
   const { id } = await params;
   const postId = Number(id);
 
-  const post = db.prepare("SELECT id FROM posts WHERE id = ?").get(postId);
+  const post = await db.get<{ id: number }>("SELECT id FROM posts WHERE id = ?", [postId]);
   if (!post) {
     return NextResponse.json({ error: "Post not found" }, { status: 404 });
   }
 
-  db.prepare(
-    "INSERT OR IGNORE INTO likes (user_id, post_id) VALUES (?, ?)"
-  ).run(me.userId, postId);
+  await db.run("INSERT OR IGNORE INTO likes (user_id, post_id) VALUES (?, ?)", [
+    me.userId,
+    postId,
+  ]);
 
-  const { count } = db
-    .prepare("SELECT COUNT(*) AS count FROM likes WHERE post_id = ?")
-    .get(postId) as { count: number };
+  const likeRow = await db.get<{ count: number }>(
+    "SELECT COUNT(*) AS count FROM likes WHERE post_id = ?",
+    [postId]
+  );
 
-  return NextResponse.json({ likeCount: count, likedByMe: true });
+  return NextResponse.json({ likeCount: likeRow?.count ?? 0, likedByMe: true });
 }
 
 // DELETE /api/posts/[id]/like
@@ -40,13 +42,15 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const { id } = await params;
   const postId = Number(id);
 
-  db.prepare(
-    "DELETE FROM likes WHERE user_id = ? AND post_id = ?"
-  ).run(me.userId, postId);
+  await db.run("DELETE FROM likes WHERE user_id = ? AND post_id = ?", [
+    me.userId,
+    postId,
+  ]);
 
-  const { count } = db
-    .prepare("SELECT COUNT(*) AS count FROM likes WHERE post_id = ?")
-    .get(postId) as { count: number };
+  const likeRow = await db.get<{ count: number }>(
+    "SELECT COUNT(*) AS count FROM likes WHERE post_id = ?",
+    [postId]
+  );
 
-  return NextResponse.json({ likeCount: count, likedByMe: false });
+  return NextResponse.json({ likeCount: likeRow?.count ?? 0, likedByMe: false });
 }

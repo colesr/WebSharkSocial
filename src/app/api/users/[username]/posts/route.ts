@@ -12,16 +12,28 @@ export async function GET(req: NextRequest, { params }: Params) {
   const cursor = searchParams.get("cursor");
   const limit = 20;
 
-  const user = db
-    .prepare("SELECT id FROM users WHERE username = ?")
-    .get(username) as { id: number } | undefined;
+  const user = await db.get<{ id: number }>(
+    "SELECT id FROM users WHERE username = ?",
+    [username]
+  );
 
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  const rows = db
-    .prepare(
+  const rows = await db.all<{
+      id: number;
+      content: string;
+      image_url: string;
+      created_at: string;
+      author_id: number;
+      author_username: string;
+      author_display_name: string;
+      author_avatar: string;
+      like_count: number;
+      comment_count: number;
+      liked_by_me: number;
+    }>(
       `SELECT
          p.id, p.content, p.image_url, p.created_at,
          u.id AS author_id, u.username AS author_username,
@@ -34,21 +46,9 @@ export async function GET(req: NextRequest, { params }: Params) {
        WHERE p.user_id = ?
          AND (? IS NULL OR p.created_at < ?)
        ORDER BY p.created_at DESC
-       LIMIT ?`
-    )
-    .all(me?.userId ?? null, user.id, cursor, cursor, limit) as Array<{
-      id: number;
-      content: string;
-      image_url: string;
-      created_at: string;
-      author_id: number;
-      author_username: string;
-      author_display_name: string;
-      author_avatar: string;
-      like_count: number;
-      comment_count: number;
-      liked_by_me: number;
-    }>;
+       LIMIT ?`,
+      [me?.userId ?? null, user.id, cursor, cursor, limit]
+    );
 
   const posts = rows.map((r) => ({
     id: r.id,

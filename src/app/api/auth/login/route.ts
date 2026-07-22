@@ -14,13 +14,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const user = db
-      .prepare(
-        "SELECT id, username, display_name, password_hash FROM users WHERE email = ?"
-      )
-      .get(email) as
+    const user = await db.get<
       | { id: number; username: string; display_name: string; password_hash: string }
-      | undefined;
+      | undefined
+    >(
+      "SELECT id, username, display_name, password_hash FROM users WHERE email = ?",
+      [email]
+    );
 
     if (!user) {
       return NextResponse.json(

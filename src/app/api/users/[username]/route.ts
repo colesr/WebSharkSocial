@@ -9,15 +9,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const me = await getCurrentUser();
   const { username } = await params;
 
-  const user = db
-    .prepare(
-      `SELECT id, username, display_name, bio, avatar_url, created_at,
-              (SELECT COUNT(*) FROM follows WHERE following_id = users.id) AS follower_count,
-              (SELECT COUNT(*) FROM follows WHERE follower_id  = users.id) AS following_count,
-              (SELECT COUNT(*) FROM posts    WHERE user_id     = users.id) AS post_count
-       FROM users WHERE username = ?`
-    )
-    .get(username) as
+  const user = await db.get<
     | {
         id: number;
         username: string;
@@ -29,18 +21,25 @@ export async function GET(_req: NextRequest, { params }: Params) {
         following_count: number;
         post_count: number;
       }
-    | undefined;
+    | undefined
+  >(
+      `SELECT id, username, display_name, bio, avatar_url, created_at,
+              (SELECT COUNT(*) FROM follows WHERE following_id = users.id) AS follower_count,
+              (SELECT COUNT(*) FROM follows WHERE follower_id  = users.id) AS following_count,
+              (SELECT COUNT(*) FROM posts    WHERE user_id     = users.id) AS post_count
+       FROM users WHERE username = ?`,
+      [username]
+    );
 
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
   const isFollowing = me
-    ? !!db
-        .prepare(
-          "SELECT 1 FROM follows WHERE follower_id = ? AND following_id = ?"
-        )
-        .get(me.userId, user.id)
+    ? !!(await db.get(
+        "SELECT 1 FROM follows WHERE follower_id = ? AND following_id = ?",
+        [me.userId, user.id]
+      ))
     : false;
 
   return NextResponse.json({

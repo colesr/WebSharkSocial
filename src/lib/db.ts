@@ -56,6 +56,64 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id);
   CREATE INDEX IF NOT EXISTS idx_likes_post_id     ON likes(post_id);
   CREATE INDEX IF NOT EXISTS idx_comments_post_id  ON comments(post_id);
-`);
+`;
+
+type SqlArgs = InArgs;
+
+let client: Client | null = null;
+let initPromise: Promise<void> | null = null;
+
+function getRequiredEnv(name: "TURSO_DATABASE_URL"): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} environment variable is required.`);
+  }
+  return value;
+}
+
+function toObject<T>(row: Row | undefined): T | undefined {
+  return row ? ({ ...row } as T) : undefined;
+}
+
+function getClient(): Client {
+  if (!client) {
+    client = createClient({
+      url: getRequiredEnv("TURSO_DATABASE_URL"),
+      authToken: process.env.TURSO_AUTH_TOKEN,
+      intMode: "number",
+    });
+
+    initPromise = client.executeMultiple(schema).then(() => undefined);
+  }
+
+  return client;
+}
+
+async function ensureInitialized(): Promise<Client> {
+  const db = getClient();
+  if (initPromise) {
+    await initPromise;
+  }
+  return db;
+}
+
+const db = {
+  async get<T>(sql: string, args: SqlArgs = []): Promise<T | undefined> {
+    const client = await ensureInitialized();
+    const result = await client.execute({ sql, args });
+    return toObject<T>(result.rows[0]);
+  },
+
+  async all<T>(sql: string, args: SqlArgs = []): Promise<T[]> {
+    const client = await ensureInitialized();
+    const result = await client.execute({ sql, args });
+    return result.rows.map((row) => toObject<T>(row) as T);
+  },
+
+  async run(sql: string, args: SqlArgs = []): Promise<ResultSet> {
+    const client = await ensureInitialized();
+    return client.execute({ sql, args });
+  },
+};
 
 export default db;
