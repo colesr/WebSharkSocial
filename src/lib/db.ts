@@ -1,12 +1,14 @@
-import { createClient } from "@libsql/client";
+import "server-only";
+import fs from "node:fs";
+import path from "node:path";
+import Database from "better-sqlite3";
 
-const db = createClient({
-  url: process.env.TURSO_DATABASE_URL!,
-  authToken: process.env.TURSO_AUTH_TOKEN,
-});
+const dataDir = path.join(process.cwd(), "data");
+fs.mkdirSync(dataDir, { recursive: true });
 
-// Initialize schema on startup
-await db.executeMultiple(`
+const db = new Database(path.join(dataDir, "webshark.db"));
+db.pragma("foreign_keys = ON");
+db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     username     TEXT    UNIQUE NOT NULL COLLATE NOCASE,
