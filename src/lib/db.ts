@@ -1,39 +1,29 @@
-import Database from "better-sqlite3";
-import path from "path";
-import fs from "fs";
+import { createClient } from "@libsql/client";
 
-const DB_DIR = path.join(process.cwd(), "data");
-const DB_PATH = path.join(DB_DIR, "webshark.db");
+const db = createClient({
+  url: process.env.TURSO_DATABASE_URL!,
+  authToken: process.env.TURSO_AUTH_TOKEN,
+});
 
-if (!fs.existsSync(DB_DIR)) {
-  fs.mkdirSync(DB_DIR, { recursive: true });
-}
-
-const db = new Database(DB_PATH);
-
-// Enable WAL mode for better concurrent performance
-db.pragma("journal_mode = WAL");
-db.pragma("foreign_keys = ON");
-
-// Initialize schema
-db.exec(`
+// Initialize schema on startup
+await db.executeMultiple(`
   CREATE TABLE IF NOT EXISTS users (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    username    TEXT    UNIQUE NOT NULL COLLATE NOCASE,
-    display_name TEXT   NOT NULL,
-    email       TEXT    UNIQUE NOT NULL COLLATE NOCASE,
-    password_hash TEXT  NOT NULL,
-    bio         TEXT    DEFAULT '',
-    avatar_url  TEXT    DEFAULT '',
-    created_at  TEXT    DEFAULT (datetime('now'))
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    username     TEXT    UNIQUE NOT NULL COLLATE NOCASE,
+    display_name TEXT    NOT NULL,
+    email        TEXT    UNIQUE NOT NULL COLLATE NOCASE,
+    password_hash TEXT   NOT NULL,
+    bio          TEXT    DEFAULT '',
+    avatar_url   TEXT    DEFAULT '',
+    created_at   TEXT    DEFAULT (datetime('now'))
   );
 
   CREATE TABLE IF NOT EXISTS posts (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    content     TEXT    NOT NULL,
-    image_url   TEXT    DEFAULT '',
-    created_at  TEXT    DEFAULT (datetime('now'))
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    content    TEXT    NOT NULL,
+    image_url  TEXT    DEFAULT '',
+    created_at TEXT    DEFAULT (datetime('now'))
   );
 
   CREATE TABLE IF NOT EXISTS follows (
