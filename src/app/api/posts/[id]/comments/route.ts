@@ -91,16 +91,20 @@ export async function POST(req: NextRequest, { params }: Params) {
       [Number(result.lastInsertRowid)]
     );
 
+  if (!comment) {
+    return NextResponse.json({ error: "Comment not found after creation" }, { status: 500 });
+  }
+
   return NextResponse.json(
     {
-      id: comment!.id,
-      content: comment!.content,
-      createdAt: comment!.created_at,
+      id: comment.id,
+      content: comment.content,
+      createdAt: comment.created_at,
       author: {
-        id: comment!.author_id,
-        username: comment!.author_username,
-        displayName: comment!.author_display_name,
-        avatarUrl: comment!.author_avatar,
+        id: comment.author_id,
+        username: comment.author_username,
+        displayName: comment.author_display_name,
+        avatarUrl: comment.author_avatar,
       },
     },
     { status: 201 }

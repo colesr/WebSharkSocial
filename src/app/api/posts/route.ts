@@ -109,17 +109,21 @@ export async function POST(req: NextRequest) {
       [Number(result.lastInsertRowid)]
     );
 
+  if (!post) {
+    return NextResponse.json({ error: "Post not found after creation" }, { status: 500 });
+  }
+
   return NextResponse.json(
     {
-      id: post!.id,
-      content: post!.content,
-      imageUrl: post!.image_url,
-      createdAt: post!.created_at,
+      id: post.id,
+      content: post.content,
+      imageUrl: post.image_url,
+      createdAt: post.created_at,
       author: {
-       id: post!.author_id,
-       username: post!.author_username,
-       displayName: post!.author_display_name,
-       avatarUrl: post!.author_avatar,
+       id: post.author_id,
+       username: post.author_username,
+       displayName: post.author_display_name,
+       avatarUrl: post.author_avatar,
       },
       likeCount: 0,
       commentCount: 0,

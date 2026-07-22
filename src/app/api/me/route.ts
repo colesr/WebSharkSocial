@@ -67,11 +67,15 @@ export async function PUT(req: NextRequest) {
     [me.userId]
   );
 
+  if (!updated) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
   return NextResponse.json({
-    id: updated!.id,
-    username: updated!.username,
-    displayName: updated!.display_name,
-    bio: updated!.bio,
-    avatarUrl: updated!.avatar_url,
+    id: updated.id,
+    username: updated.username,
+    displayName: updated.display_name,
+    bio: updated.bio,
+    avatarUrl: updated.avatar_url,
   });
 }
