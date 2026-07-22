@@ -77,7 +77,8 @@ describe("database – users", () => {
       "SELECT password_hash FROM users WHERE username = ?",
       ["alice"]
     );
-    const valid = await bcrypt.compare("password1", user.password_hash);
+    expect(user).toBeDefined();
+    const valid = await bcrypt.compare("password1", user!.password_hash);
     expect(valid).toBe(true);
   });
 
@@ -86,7 +87,8 @@ describe("database – users", () => {
       "SELECT password_hash FROM users WHERE username = ?",
       ["alice"]
     );
-    const valid = await bcrypt.compare("wrongpassword", user.password_hash);
+    expect(user).toBeDefined();
+    const valid = await bcrypt.compare("wrongpassword", user!.password_hash);
     expect(valid).toBe(false);
   });
 });

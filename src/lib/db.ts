@@ -76,7 +76,14 @@ function getClient(): Client {
       intMode: "number",
     });
 
-    initPromise = client.executeMultiple(schema).then(() => undefined);
+    initPromise = client
+      .executeMultiple(schema)
+      .catch((err: unknown): never => {
+        // Reset so the next request can retry initialization
+        initPromise = null;
+        client = null;
+        throw err;
+      });
   }
 
   return client;
