@@ -3,6 +3,9 @@
  * These test the core logic without starting a server.
  */
 
+// Set JWT_SECRET before any imports that use it
+process.env.JWT_SECRET = "test-secret-for-jest-only";
+
 import path from "path";
 import fs from "fs";
 import Database from "better-sqlite3";

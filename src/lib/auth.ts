@@ -4,11 +4,14 @@ import jwt from "jsonwebtoken";
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("JWT_SECRET environment variable is not set");
+    // Only allow a fallback in an explicit local development environment
+    if (process.env.NODE_ENV === "development") {
+      return "webshark-social-dev-only-secret-change-before-deploy";
     }
-    // Development-only fallback — never used in production
-    return "webshark-social-dev-secret-change-before-deploy";
+    throw new Error(
+      "JWT_SECRET environment variable is required. " +
+        "Set it to a strong random value (e.g. `openssl rand -base64 48`)."
+    );
   }
   return secret;
 }
