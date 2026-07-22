@@ -35,9 +35,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const existing = db
-      .prepare("SELECT id FROM users WHERE username = ? OR email = ?")
-      .get(username, email);
+    const existing = await db.get<{ id: number }>(
+      "SELECT id FROM users WHERE username = ? OR email = ?",
+      [username, email]
+    );
 
     if (existing) {
       return NextResponse.json(
@@ -48,13 +49,12 @@ export async function POST(req: NextRequest) {
 
     const passwordHash = await bcrypt.hash(password, 12);
 
-    const result = db
-      .prepare(
-        "INSERT INTO users (username, display_name, email, password_hash) VALUES (?, ?, ?, ?)"
-      )
-      .run(username, displayName, email, passwordHash);
+    const result = await db.run(
+      "INSERT INTO users (username, display_name, email, password_hash) VALUES (?, ?, ?, ?)",
+      [username, displayName, email, passwordHash]
+    );
 
-    const userId = result.lastInsertRowid as number;
+    const userId = Number(result.lastInsertRowid);
     const token = signToken({ userId, username });
     const cookieOpts = setAuthCookie(token);
 

@@ -20,11 +20,7 @@ Before you begin, make sure you have the following installed:
 
 - **Node.js** v18 or later — [Download](https://nodejs.org/)
 - **npm** v9 or later (bundled with Node.js)
-
-> **Note:** This project uses [better-sqlite3](https://github.com/WiseLibs/better-sqlite3), a native Node.js module. On some systems you may need build tools installed:
-> - **macOS:** `xcode-select --install`
-> - **Linux (Debian/Ubuntu):** `sudo apt-get install build-essential python3`
-> - **Windows:** Install [windows-build-tools](https://www.npmjs.com/package/windows-build-tools) or Visual Studio Build Tools
+- A **Turso** database and auth token for local and hosted environments
 
 ---
 
@@ -51,7 +47,7 @@ Copy the example environment file and fill in the required values:
 cp .env.example .env.local
 ```
 
-Then open `.env.local` and set a strong JWT secret (see [Environment Variables](#environment-variables) below).
+Then open `.env.local` and set your Turso connection details plus a strong JWT secret (see [Environment Variables](#environment-variables) below).
 
 ### 4. Start the development server
 
@@ -65,9 +61,11 @@ The app will be available at **http://localhost:3000**.
 
 ## Environment Variables
 
-| Variable     | Required        | Description                                                                                      |
-|--------------|-----------------|--------------------------------------------------------------------------------------------------|
-| `JWT_SECRET` | Production only | Secret key used to sign authentication tokens. Must be a strong random string in production.     |
+| Variable             | Required | Description                                                                                  |
+|----------------------|----------|----------------------------------------------------------------------------------------------|
+| `JWT_SECRET`         | Yes      | Secret key used to sign authentication tokens. Must be a strong random string in production. |
+| `TURSO_DATABASE_URL` | Yes      | Turso/libSQL database URL, e.g. `libsql://your-db-name-your-org.turso.io`                    |
+| `TURSO_AUTH_TOKEN`   | Yes      | Turso auth token used by the app to connect to the hosted database                           |
 
 **Generating a secure `JWT_SECRET`:**
 
@@ -75,13 +73,13 @@ The app will be available at **http://localhost:3000**.
 openssl rand -base64 48
 ```
 
-Copy the output and set it as the value in `.env.local`:
+Copy the output and set it as the value in `.env.local`, along with your Turso credentials:
 
 ```
 JWT_SECRET=<your-generated-secret>
+TURSO_DATABASE_URL=<your-turso-url>
+TURSO_AUTH_TOKEN=<your-turso-token>
 ```
-
-> **Development note:** In `NODE_ENV=development`, the app will fall back to a hardcoded insecure secret if `JWT_SECRET` is not set. This fallback is **only** for local development — never deploy without setting a real secret.
 
 ---
 
@@ -124,7 +122,7 @@ WebSharkSocial/
 │   ├── components/           # Shared React components
 │   ├── lib/
 │   │   ├── auth.ts           # JWT auth helpers (sign, verify, cookie management)
-│   │   ├── db.ts             # SQLite database connection and schema initialization
+│   │   ├── db.ts             # Turso/libSQL client and schema initialization
 │   │   └── time.ts           # Time/date utility helpers
 │   └── __tests__/            # Jest test suite
 ├── public/                   # Static assets
@@ -151,11 +149,11 @@ WebSharkSocial/
 
 ## Database
 
-WebSharkSocial uses **SQLite** via [better-sqlite3](https://github.com/WiseLibs/better-sqlite3). No external database setup is required.
+WebSharkSocial uses **Turso/libSQL** via [`@libsql/client`](https://docs.turso.tech/sdk/ts/quickstart).
 
-- The database file is automatically created at `data/webshark.db` the first time the app starts.
+- The app connects to the hosted database using `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`.
 - The schema (users, posts, follows, likes, comments) is initialized automatically on startup.
-- The `data/` directory is excluded from version control via `.gitignore`.
+- This setup works with Vercel and other serverless hosts because the database is remote rather than file-based.
 
 **Tables:**
 

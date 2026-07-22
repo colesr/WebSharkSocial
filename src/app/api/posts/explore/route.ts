@@ -9,22 +9,7 @@ export async function GET(req: NextRequest) {
   const cursor = searchParams.get("cursor");
   const limit = 20;
 
-  const rows = db
-    .prepare(
-      `SELECT
-         p.id, p.content, p.image_url, p.created_at,
-         u.id AS author_id, u.username AS author_username,
-         u.display_name AS author_display_name, u.avatar_url AS author_avatar,
-         (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id)              AS like_count,
-         (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id)           AS comment_count,
-         EXISTS(SELECT 1 FROM likes l2 WHERE l2.post_id = p.id AND l2.user_id = ?) AS liked_by_me
-       FROM posts p
-       JOIN users u ON u.id = p.user_id
-       WHERE (? IS NULL OR p.created_at < ?)
-       ORDER BY p.created_at DESC
-       LIMIT ?`
-    )
-    .all(me?.userId ?? null, cursor, cursor, limit) as Array<{
+  const rows = await db.all<{
       id: number;
       content: string;
       image_url: string;
@@ -36,7 +21,21 @@ export async function GET(req: NextRequest) {
       like_count: number;
       comment_count: number;
       liked_by_me: number;
-    }>;
+    }>(
+      `SELECT
+         p.id, p.content, p.image_url, p.created_at,
+         u.id AS author_id, u.username AS author_username,
+         u.display_name AS author_display_name, u.avatar_url AS author_avatar,
+         (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id)              AS like_count,
+         (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id)           AS comment_count,
+         EXISTS(SELECT 1 FROM likes l2 WHERE l2.post_id = p.id AND l2.user_id = ?) AS liked_by_me
+       FROM posts p
+       JOIN users u ON u.id = p.user_id
+       WHERE (? IS NULL OR p.created_at < ?)
+       ORDER BY p.created_at DESC
+       LIMIT ?`,
+      [me?.userId ?? null, cursor, cursor, limit]
+    );
 
   const posts = rows.map((r) => ({
     id: r.id,
