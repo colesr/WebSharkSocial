@@ -1,8 +1,12 @@
-import { createClient, type Client, type InArgs, type ResultSet, type Row } from "@libsql/client";
+import { createClient } from "@libsql/client";
 
-const schema = `
-  PRAGMA foreign_keys = ON;
+const db = createClient({
+  url: process.env.TURSO_DATABASE_URL!,
+  authToken: process.env.TURSO_AUTH_TOKEN,
+});
 
+// Initialize schema on startup
+await db.executeMultiple(`
   CREATE TABLE IF NOT EXISTS users (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     username     TEXT    UNIQUE NOT NULL COLLATE NOCASE,
