@@ -22,9 +22,9 @@ function ExploreContent() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [users, setUsers] = useState<UserResult[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [tab, setTab] = useState<"posts" | "people">("posts");
+  const [tab, setTab] = useState<"posts" | "people">(initialQ ? "people" : "posts");
 
   const loadPosts = useCallback(async (cursor?: string) => {
     const url = cursor
@@ -36,7 +36,6 @@ function ExploreContent() {
   }, []);
 
   useEffect(() => {
-    setLoading(true);
     loadPosts().then((data) => {
       if (data) {
         setPosts(data.posts);
@@ -84,10 +83,12 @@ function ExploreContent() {
   }
 
   useEffect(() => {
-    if (initialQ) {
-      setTab("people");
-      searchUsers(initialQ);
-    }
+    if (!initialQ) return;
+    fetch(`/api/users/search?q=${encodeURIComponent(initialQ)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) setUsers(data.users);
+      });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

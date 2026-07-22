@@ -40,7 +40,6 @@ export default function FeedPage() {
   }, []);
 
   useEffect(() => {
-    setLoading(true);
     loadPosts().then((data) => {
       if (data) {
         setPosts(
